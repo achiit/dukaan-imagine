@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>ImagineAI</title>
+<style>
+/* ============ Theme tokens ============ */
+:root{
+  --bg:#f6f7f9; --surface:#ffffff; --surface2:#eef0f3; --border:#e4e7ec;
+  --text:#14171c; --muted:#6a7280; --accent:#4f46e5; --accent2:#7c3aed;
+  --accent-soft:rgba(79,70,229,.10); --danger:#dc2626; --danger-soft:rgba(220,38,38,.09);
+  --user-bg:linear-gradient(135deg,#4f46e5,#7c3aed); --user-text:#fff;
+  --shadow:0 8px 30px rgba(16,24,40,.08); --shadow-sm:0 1px 3px rgba(16,24,40,.08);
+  --sidebar-w:288px;
+}
+:root[data-theme="dark"]{
+  --bg:#0d0e12; --surface:#16181e; --surface2:#1f222a; --border:#2a2e37;
+  --text:#eceef2; --muted:#9097a4; --accent:#818cf8; --accent2:#a78bfa;
+  --accent-soft:rgba(129,140,248,.14); --danger:#f87171; --danger-soft:rgba(248,113,113,.12);
+  --user-bg:linear-gradient(135deg,#5b54e8,#8b5cf6);
+  --shadow:0 8px 30px rgba(0,0,0,.45); --shadow-sm:0 1px 3px rgba(0,0,0,.4);
+}
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; min-height:100vh; background:var(--bg); color:var(--text);
+  font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Inter","Helvetica Neue",Arial,sans-serif;
+  transition:background-color .3s ease,color .3s ease;
+}
+@supports (min-height:100dvh){ body{min-height:100dvh} }
+body.lock{overflow:hidden}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:var(--accent)}
+[hidden]{display:none!important}
+
+/* ============ Loader ============ */
+#loading{
+  position:fixed; inset:0; z-index:1000; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:14px; background:#f6f7f9; color:#4b5563; font:600 15px/1.4 -apple-system,"Segoe UI",Roboto,sans-serif;
+  transition:opacity .3s ease; text-align:center; padding:24px;
+}
+#loading.done{opacity:0;pointer-events:none}
+#loading .spin{width:30px;height:30px;border-radius:50%;border:3px solid #d9dce3;border-top-color:#4f46e5;animation:spin .8s linear infinite}
+#loading.failed .spin{display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ============ Layout ============ */
+.app{min-height:100vh;display:flex}
+@supports (min-height:100dvh){ .app{min-height:100dvh} }
+
+.sidebar{
+  position:fixed; top:0; bottom:0; left:0; width:min(86vw,var(--sidebar-w)); z-index:60;
+  display:flex; flex-direction:column; background:var(--surface); border-right:1px solid var(--border);
+  transform:translateX(-102%); transition:transform .28s cubic-bezier(.22,.8,.3,1),background-color .3s,border-color .3s;
+  padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom); box-shadow:var(--shadow);
+}
+body.sb-open .sidebar{transform:none}
+.backdrop{position:fixed;inset:0;z-index:50;background:rgba(10,12,16,.5);opacity:0;pointer-events:none;transition:opacity .25s}
+body.sb-open .backdrop{opacity:1;pointer-events:auto}
+
+.sb-head{display:flex;align-items:center;justify-content:space-between;padding:16px 14px 8px 18px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px;letter-spacing:-.01em}
+.logo{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent2))}
+.logo svg{width:18px;height:18px}
+.new-chat{
+  margin:8px 14px 6px; padding:11px 14px; display:flex; align-items:center; gap:10px; justify-content:center;
+  background:var(--accent-soft); color:var(--accent); border:1px solid transparent; border-radius:12px; font-weight:600;
+  transition:transform .15s,background-color .2s,border-color .2s;
+}
+.new-chat:hover{border-color:var(--accent)}
+.new-chat:active{transform:scale(.98)}
+.sb-label{padding:14px 20px 6px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.chat-list{flex:1;overflow-y:auto;padding:0 10px 10px;-webkit-overflow-scrolling:touch}
+.chat-item{display:flex;align-items:center;border-radius:10px;margin-bottom:2px;transition:background-color .15s}
+.chat-item:hover{background:var(--surface2)}
+.chat-item.active{background:var(--accent-soft)}
+.chat-btn{flex:1;min-width:0;text-align:left;padding:10px 12px;background:none;border:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14.5px}
+.chat-item.active .chat-btn{font-weight:600;color:var(--accent)}
+.chat-actions{display:flex;opacity:0;transition:opacity .15s;padding-right:4px}
+.chat-item:hover .chat-actions,.chat-item.active .chat-actions,.chat-item:focus-within .chat-actions{opacity:1}
+@media (hover:none){ .chat-actions{opacity:1} }
+.mini-btn{width:30px;height:30px;display:grid;place-items:center;border:0;background:none;border-radius:8px;color:var(--muted)}
+.mini-btn svg{width:15px;height:15px}
+.mini-btn:hover{background:var(--surface);color:var(--text)}
+.mini-btn.del:hover{color:var(--danger)}
+.empty-list{padding:10px 12px;color:var(--muted);font-size:14px}
+.sb-foot{padding:10px 14px 14px;border-top:1px solid var(--border)}
+.sb-link{width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;border:0;background:none;border-radius:10px;font-size:14.5px;color:var(--text)}
+.sb-link:hover{background:var(--surface2)}
+.sb-link svg{width:18px;height:18px;color:var(--muted)}
+
+.main{flex:1;min-width:0;display:flex;flex-direction:column;min-height:100vh}
+@supports (min-height:100dvh){ .main{min-height:100dvh} }
+
+.topbar{
+  position:sticky; top:0; z-index:30; display:flex; align-items:center; gap:6px;
+  padding:calc(10px + env(safe-area-inset-top)) 12px 10px 12px;
+  background:color-mix(in srgb,var(--bg) 86%,transparent); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border); transition:background-color .3s,border-color .3s;
+}
+.title-wrap{flex:1;min-width:0;padding:0 6px}
+.chat-title{font-weight:650;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.model-label{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.icon-btn{width:40px;height:40px;flex:none;display:grid;place-items:center;border:0;background:none;border-radius:12px;color:var(--text);transition:background-color .15s,transform .1s}
+.icon-btn:hover{background:var(--surface2)}
+.icon-btn:active{transform:scale(.94)}
+.icon-btn svg{width:20px;height:20px}
+
+.messages{flex:1;width:100%}
+.thread{max-width:800px;margin:0 auto;padding:12px 16px 24px}
+
+/* ============ Welcome ============ */
+.welcome{text-align:center;padding:9vh 8px 0;animation:rise .5s ease both}
+.welcome .logo{width:56px;height:56px;border-radius:18px;margin:0 auto 18px;box-shadow:0 10px 30px rgba(79,70,229,.35)}
+.welcome .logo svg{width:28px;height:28px}
+.welcome h1{margin:0 0 6px;font-size:clamp(24px,5vw,32px);letter-spacing:-.02em}
+.welcome p{margin:0 auto;color:var(--muted);max-width:460px}
+.chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:26px auto 0;max-width:620px}
+.chip{
+  text-align:left;padding:13px 15px;background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  font-size:14.5px;box-shadow:var(--shadow-sm);transition:transform .15s,border-color .2s,box-shadow .2s;
+}
+.chip:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:var(--shadow)}
+.callout{margin:22px auto 0;max-width:460px;padding:12px 14px;border-radius:14px;background:var(--accent-soft);color:var(--text);font-size:14.5px}
+.callout button{background:none;border:0;color:var(--accent);font-weight:600;padding:0;text-decoration:underline}
+
+/* ============ Messages ============ */
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.msg{display:flex;gap:12px;margin:20px 0;animation:rise .3s ease both}
+.msg.user{justify-content:flex-end}
+.msg.user .bubble{
+  background:var(--user-bg);color:var(--user-text);padding:10px 16px;max-width:86%;border-radius:20px 20px 6px 20px;
+  white-space:pre-wrap;overflow-wrap:anywhere;box-shadow:var(--shadow-sm);
+}
+.avatar{width:32px;height:32px;flex:none;border-radius:10px;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent2));margin-top:2px}
+.avatar svg{width:17px;height:17px}
+.msg.ai .body{flex:1;min-width:0;max-width:calc(100% - 44px)}
+.msg.ai .content{
+  background:var(--surface);border:1px solid var(--border);padding:12px 16px;border-radius:6px 20px 20px 20px;
+  overflow-wrap:anywhere;box-shadow:var(--shadow-sm);transition:background-color .3s,border-color .3s;
+}
+.msg.error .content{background:var(--danger-soft);border-color:var(--danger);color:var(--text);white-space:pre-wrap}
+.msg.error .content::before{content:"⚠ ";color:var(--danger);font-weight:700}
+.actions{display:flex;gap:2px;margin-top:4px;margin-left:4px}
+.act{display:inline-flex;align-items:center;gap:6px;padding:5px 8px;border:0;background:none;color:var(--muted);border-radius:8px;font-size:13px}
+.act svg{width:15px;height:15px}
+.act:hover{background:var(--surface2);color:var(--text)}
+
+.reasoning{margin-bottom:8px;border:1px dashed var(--border);border-radius:12px;padding:6px 12px;color:var(--muted);font-size:14px}
+.reasoning summary{cursor:pointer;font-weight:600;font-size:13px;list-style:none}
+.reasoning summary::-webkit-details-marker{display:none}
+.reasoning summary::before{content:"▸ ";display:inline-block;transition:transform .2s}
+.reasoning[open] summary::before{transform:rotate(90deg)}
+.reasoning-text{white-space:pre-wrap;margin-top:6px;max-height:240px;overflow:auto}
+
+.dots{display:inline-flex;gap:4px;padding:6px 0}
+.dots i{width:7px;height:7px;border-radius:50%;background:var(--muted);animation:bounce 1.2s infinite ease-in-out}
+.dots i:nth-child(2){animation-delay:.15s}.dots i:nth-child(3){animation-delay:.3s}
+@keyframes bounce{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-5px);opacity:1}}
+.caret{display:inline-block;width:7px;height:1.05em;margin-left:2px;vertical-align:-.15em;background:var(--accent);border-radius:2px;animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
+
+/* ============ Markdown ============ */
+.md>:first-child{margin-top:0}.md>:last-child{margin-bottom:0}
+.md p{margin:.65em 0}
+.md h1,.md h2,.md h3,.md h4{line-height:1.25;margin:1.2em 0 .5em;letter-spacing:-.01em}
+.md h1{font-size:1.45em}.md h2{font-size:1.28em}.md h3{font-size:1.12em}.md h4{font-size:1em}
+.md ul,.md ol{padding-left:1.5em;margin:.6em 0}.md li{margin:.25em 0}
+.md blockquote{margin:.8em 0;padding:.2em 1em;border-left:3px solid var(--accent);color:var(--muted);background:var(--accent-soft);border-radius:0 10px 10px 0}
+.md hr{border:0;border-top:1px solid var(--border);margin:1.2em 0}
+.md img{max-width:100%;border-radius:10px}
+.md code{background:var(--surface2);padding:.15em .4em;border-radius:6px;font:.88em ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.table-wrap{overflow-x:auto;margin:.8em 0;border:1px solid var(--border);border-radius:10px}
+.md table{border-collapse:collapse;width:100%;font-size:.93em}
+.md th,.md td{padding:8px 12px;border-bottom:1px solid var(--border);text-align:left}
+.md th{background:var(--surface2);font-weight:600}
+.md tr:last-child td{border-bottom:0}
+.code-block{margin:.9em 0;border-radius:12px;overflow:hidden;background:#0f172a;border:1px solid #1e293b}
+.code-head{display:flex;align-items:center;justify-content:space-between;padding:6px 8px 6px 14px;background:#1b2538;color:#94a3b8;font-size:12px}
+.code-head button{display:inline-flex;align-items:center;gap:5px;border:0;background:none;color:#94a3b8;padding:4px 8px;border-radius:6px;font-size:12px}
+.code-head button:hover{background:#273348;color:#fff}
+.code-head svg{width:13px;height:13px}
+.md pre{margin:0;padding:12px 14px;overflow-x:auto;color:#e2e8f0;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;-webkit-overflow-scrolling:touch}
+.md pre code{background:none;padding:0;color:inherit;font:inherit;border-radius:0}
+
+/* ============ Composer ============ */
+.composer-wrap{
+  position:sticky;bottom:0;z-index:20;padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+  background:linear-gradient(to top,var(--bg) 72%,transparent);will-change:transform;
+}
+.composer{
+  max-width:800px;margin:0 auto;display:flex;align-items:flex-end;gap:8px;padding:8px 8px 8px 16px;
+  background:var(--surface);border:1px solid var(--border);border-radius:26px;box-shadow:var(--shadow);
+  transition:border-color .2s,box-shadow .2s,background-color .3s;
+}
+.composer:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft),var(--shadow)}
+.composer textarea{
+  flex:1;min-width:0;resize:none;border:0;outline:0;background:transparent;padding:8px 0;max-height:180px;
+  font-size:16px;line-height:1.5;
+}
+.composer textarea::placeholder{color:var(--muted)}
+.send{
+  width:42px;height:42px;flex:none;border-radius:50%;border:0;display:grid;place-items:center;color:#fff;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));transition:transform .15s,opacity .2s,filter .2s;
+}
+.send svg{width:20px;height:20px}
+.send:hover{filter:brightness(1.08)}.send:active{transform:scale(.92)}
+.send:disabled{opacity:.35;cursor:not-allowed}
+.hint{max-width:800px;margin:6px auto 0;text-align:center;font-size:12px;color:var(--muted)}
+
+/* ============ Modals ============ */
+.modal{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(10,12,16,.55);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+.modal.open{display:flex;animation:fade .2s ease}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes pop{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
+.sheet{width:100%;max-width:540px;max-height:calc(100vh - 32px);overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow);animation:pop .25s cubic-bezier(.22,.8,.3,1)}
+@supports (max-height:100dvh){ .sheet{max-height:calc(100dvh - 32px)} }
+.sheet.small{max-width:400px}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;padding:16px 12px 4px 22px}
+.sheet-head h2{margin:0;font-size:19px;letter-spacing:-.01em}
+.sheet-body{padding:8px 22px 20px}
+.field{margin-top:16px}
+.field>label,.label{display:block;margin-bottom:6px;font-weight:600;font-size:14px}
+.field small{display:block;margin-top:6px;color:var(--muted);font-size:12.5px;line-height:1.45}
+.field input,.field textarea,.dlg-input{
+  width:100%;padding:11px 13px;font-size:16px;background:var(--bg);border:1px solid var(--border);border-radius:12px;outline:0;
+  transition:border-color .2s,box-shadow .2s;
+}
+.field textarea{resize:vertical;min-height:140px;line-height:1.5}
+.field input:focus,.field textarea:focus,.dlg-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.input-row{display:flex;gap:8px}
+.form-error{margin-top:14px;padding:10px 12px;border-radius:10px;background:var(--danger-soft);color:var(--danger);font-size:14px}
+.sheet-foot{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:20px}
+.spacer{flex:1}
+.btn{padding:10px 18px;border-radius:12px;border:1px solid transparent;font-weight:600;font-size:15px;transition:transform .1s,filter .2s,background-color .2s}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{background:var(--danger);color:#fff}
+.btn.ghost{background:var(--surface2);color:var(--text)}
+.btn.ghost:hover{filter:brightness(.96)}
+.dlg-msg{margin:6px 0 0;color:var(--muted);font-size:15px}
+.dlg-input{margin-top:12px}
+.dlg-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
+
+.toast{
+  position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));z-index:200;transform:translate(-50%,20px);opacity:0;pointer-events:none;
+  background:#1f2937;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;max-width:90vw;text-align:center;
+  box-shadow:var(--shadow);transition:opacity .25s,transform .25s;
+}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* ============ Desktop ============ */
+@media (min-width:860px){
+  .sidebar{transform:none;box-shadow:none}
+  .main{margin-left:var(--sidebar-w)}
+  .menu-btn,.sb-close{display:none}
+  .backdrop{display:none}
+  body.sb-open{overflow:auto}
+  .thread{padding-left:24px;padding-right:24px}
+}
+@media (max-width:480px){
+  .msg.ai .body{max-width:calc(100% - 40px)}
+  .msg{gap:8px}
+  .avatar{width:28px;height:28px}
+  .thread{padding-left:12px;padding-right:12px}
+}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+
+<div id="loading"><div class="spin"></div><div id="loadingText">Loading App...</div></div>
+<noscript><div style="position:fixed;inset:0;z-index:2000;background:#fff;color:#111;display:grid;place-items:center;padding:24px;text-align:center;font-family:sans-serif">ImagineAI needs JavaScript enabled to run.</div></noscript>
+
+<div class="app">
+  <aside class="sidebar" id="sidebar" aria-label="Chat history">
+    <div class="sb-head">
+      <div class="brand"><span class="logo" data-icon="sparkle"></span>ImagineAI</div>
+      <button class="icon-btn sb-close" id="btnCloseSb" data-icon="x" aria-label="Close sidebar"></button>
+    </div>
+    <button class="new-chat" id="btnNew"><span data-icon="plus" style="display:inline-flex"></span>New chat</button>
+    <div class="sb-label">Chats</div>
+    <nav class="chat-list" id="chatList"></nav>
+    <div class="sb-foot">
+      <button class="sb-link" id="btnSettingsSb"><span data-icon="gear" style="display:inline-flex"></span>Settings</button>
+    </div>
+  </aside>
+  <div class="backdrop" id="backdrop"></div>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="icon-btn menu-btn" id="btnMenu" data-icon="menu" aria-label="Open sidebar"></button>
+      <div class="title-wrap">
+        <div class="chat-title" id="chatTitle">New chat</div>
+        <div class="model-label" id="modelLabel"></div>
+      </div>
+      <button class="icon-btn" id="btnTheme" aria-label="Toggle dark mode"></button>
+      <button class="icon-btn" id="btnSettings" data-icon="gear" aria-label="Settings"></button>
+    </header>
+
+    <main class="messages" id="messages"><div class="thread" id="thread"></div></main>
+
+    <div class="composer-wrap" id="composerWrap">
+      <form class="composer" id="composer" autocomplete="off">
+        <textarea id="input" rows="1" placeholder="Message ImagineAI…" aria-label="Message"></textarea>
+        <button type="submit" class="send" id="btnSend" aria-label="Send message" disabled></button>
+      </form>
+      <div class="hint">ImagineAI can make mistakes. Check important information.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div class="modal" id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h2 id="settingsTitle">Settings</h2>
+      <button class="icon-btn" data-close="settingsModal" data-icon="x" aria-label="Close settings"></button>
+    </div>
+    <form class="sheet-body" id="settingsForm" autocomplete="off">
+      <div class="field">
+        <label for="setKey">OpenRouter API Key</label>
+        <div class="input-row">
+          <input type="password" id="setKey" name="openrouter-key" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="sk-or-v1-…">
+          <button type="button" class="btn ghost" id="btnShowKey">Show</button>
+        </div>
+        <small>Saved only in this browser (localStorage) and sent only to openrouter.ai. Get a key at <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer">openrouter.ai/keys</a>.</small>
+      </div>
+      <div class="field">
+        <label for="setModel">Model ID</label>
+        <input type="text" id="setModel" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="deepseek/deepseek-r1:free">
+        <small>Any model ID supported by OpenRouter, e.g. <code>deepseek/deepseek-r1:free</code>. Browse <a href="https://openrouter.ai/models" target="_blank" rel="noopener noreferrer">openrouter.ai/models</a>.</small>
+      </div>
+      <div class="field">
+        <label for="setSystem">System Message</label>
+        <textarea id="setSystem" rows="7" placeholder="Describe how the AI should behave…"></textarea>
+        <small>Sent with every request. Leave empty to send no system message.</small>
+      </div>
+      <div class="form-error" id="setError" hidden></div>
+      <div class="sheet-foot">
+        <button type="button" class="btn ghost" id="btnResetSys">Reset system message</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn ghost" data-close="settingsModal">Cancel</button>
+        <button type="submit" class="btn primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Generic dialog (rename / delete) -->
+<div class="modal" id="dialog" role="dialog" aria-modal="true" aria-labelledby="dlgTitle">
+  <div class="sheet small">
+    <div class="sheet-body" style="padding-top:20px">
+      <h2 id="dlgTitle" style="margin:0;font-size:18px"></h2>
+      <p class="dlg-msg" id="dlgMsg" hidden></p>
+      <input class="dlg-input" id="dlgInput" type="text" maxlength="80" hidden>
+      <div class="dlg-actions">
+        <button type="button" class="btn ghost" data-close="dialog">Cancel</button>
+        <button type="button" class="btn primary" id="dlgOk">OK</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- marked.js (Markdown). The app still works with a built-in fallback if this fails to load. -->
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* ================= Constants ================= */
+  var API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+  var DEFAULT_MODEL = 'deepseek/deepseek-r1:free';
+  var DEFAULT_SYSTEM = 'You are ImagineAI, a helpful, accurate and concise assistant. Use Markdown for formatting when it helps.';
+  var KEYS = {
+    key: 'imagineai.apiKey', model: 'imagineai.model', system: 'imagineai.system',
+    chats: 'imagineai.chats', active: 'imagineai.activeChat', theme: 'imagineai.theme'
+  };
+  var SUGGESTIONS = [
+    'Explain how streaming APIs work, with a simple example',
+    'Write a Python function to merge two sorted lists',
+    'Give me a 3-day itinerary for Jaipur',
+    'Compare REST and GraphQL in a table'
+  ];
+
+  /* ================= Helpers ================= */
+  function $(id) { return document.getElementById(id); }
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function sget(k, d) { try { var v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } }
+  function sset(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } }
+  function jget(k, d) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }
+  function jset(k, v) { return sset(k, JSON.stringify(v)); }
+
+  function svg(inner) {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + inner + '</svg>';
+  }
+  var ICON = {
+    menu: svg('<path d="M3 6h18M3 12h18M3 18h18"/>'),
+    plus: svg('<path d="M12 5v14M5 12h14"/>'),
+    sun: svg('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'),
+    moon: svg('<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>'),
+    gear: svg('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'),
+    send: svg('<path d="M12 19V5M5 12l7-7 7 7"/>'),
+    stop: svg('<rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/>'),
+    copy: svg('<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>'),
+    check: svg('<path d="M20 6 9 17l-5-5"/>'),
+    refresh: svg('<path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/>'),
+    trash: svg('<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/>'),
+    edit: svg('<path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>'),
+    x: svg('<path d="M18 6 6 18M6 6l12 12"/>'),
+    sparkle: svg('<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/>')
+  };
+
+  /* ================= State ================= */
+  var state = {
+    settings: { apiKey: '', model: DEFAULT_MODEL, system: DEFAULT_SYSTEM },
+    chats: [],
+    activeId: null,
+    theme: 'light'
+  };
+  var stream = null; // {chatId,msg,controller,el,body,rEl,raf}
+  var coarse = false;
+  try { coarse = window.matchMedia('(pointer: coarse)').matches; } catch (e) {}
+
+  function normalizeChats(raw) {
+    if (!Array.isArray(raw)) return [];
+    return raw.map(function (c) {
+      if (!c || typeof c !== 'object') return null;
+      var msgs = Array.isArray(c.messages) ? c.messages : [];
+      return {
+        id: String(c.id || uid()),
+        title: String(c.title || 'New chat'),
+        updated: Number(c.updated) || Date.now(),
+        messages: msgs.filter(function (m) {
+          return m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string';
+        }).map(function (m) {
+          return { role: m.role, content: m.content, reasoning: typeof m.reasoning === 'string' ? m.reasoning : '', error: !!m.error };
+        })
+      };
+    }).filter(Boolean);
+  }
+
+  function loadState() {
+    state.settings.apiKey = sget(KEYS.key, '');
+    state.settings.model = (sget(KEYS.model, '') || '').trim() || DEFAULT_MODEL;
+    var sys = sget(KEYS.system, null);
+    state.settings.system = sys === null ? DEFAULT_SYSTEM : sys;
+    state.theme = sget(KEYS.theme, 'light') === 'dark' ? 'dark' : 'light';
+    state.chats = normalizeChats(jget(KEYS.chats, []));
+    state.activeId = sget(KEYS.active, '');
+    if (!state.chats.length) {
+      var c = makeChat(); state.chats.push(c); state.activeId = c.id;
+    } else if (!state.chats.some(function (c) { return c.id === state.activeId; })) {
+      state.activeId = state.chats[0].id;
+    }
+  }
+  function makeChat() { return { id: uid(), title: 'New chat', updated: Date.now(), messages: [] }; }
+  function activeChat() {
+    for (var i = 0; i < state.chats.length; i++) if (state.chats[i].id === state.activeId) return state.chats[i];
+    return null;
+  }
+  function saveChats() {
+    var ok = jset(KEYS.chats, state.chats);
+    sset(KEYS.active, state.activeId || '');
+    if (!ok) toast('Could not save chats: browser storage is full or blocked.');
+  }
+
+  /* ================= Toast / modals ================= */
+  var toastTimer = 0;
+  function toast(msg) {
+    var t = $('toast'); if (!t) return;
+    t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2600);
+  }
+  function openModal(id) {
+    $(id).classList.add('open'); document.body.classList.add('lock');
+  }
+  function closeModal(id) {
+    $(id).classList.remove('open');
+    if (!document.querySelector('.modal.open') && !document.body.classList.contains('sb-open')) document.body.classList.remove('lock');
+  }
+  var dialogCb = null;
+  function openDialog(o) {
+    $('dlgTitle').textContent = o.title || '';
+    var m = $('dlgMsg'); m.textContent = o.message || ''; m.hidden = !o.message;
+    var inp = $('dlgInput'); inp.hidden = !o.input; inp.value = o.value || '';
+    var ok = $('dlgOk'); ok.textContent = o.okText || 'OK'; ok.className = 'btn ' + (o.danger ? 'danger' : 'primary');
+    dialogCb = o.onOk || null;
+    openModal('dialog');
+    if (o.input) setTimeout(function () { inp.focus(); inp.select(); }, 60);
+  }
+  function dialogOk() {
+    var v = $('dlgInput').value, cb = dialogCb;
+    dialogCb = null; closeModal('dialog');
+    if (cb) cb(v);
+  }
+
+  /* ================= Sidebar ================= */
+  function openSidebar() { document.body.classList.add('sb-open', 'lock'); }
+  function closeSidebar() {
+    document.body.classList.remove('sb-open');
+    if (!document.querySelector('.modal.open')) document.body.classList.remove('lock');
+  }
+
+  function renderSidebar() {
+    var list = $('chatList'); list.textContent = '';
+    if (!state.chats.length) { list.appendChild(el('div', 'empty-list', 'No chats yet')); return; }
+    state.chats.slice().sort(function (a, b) { return b.updated - a.updated; }).forEach(function (c) {
+      var item = el('div', 'chat-item' + (c.id === state.activeId ? ' active' : ''));
+      item.dataset.id = c.id;
+      var b = el('button', 'chat-btn', c.title); b.type = 'button'; b.dataset.act = 'open'; b.title = c.title;
+      var acts = el('div', 'chat-actions');
+      var r = el('button', 'mini-btn'); r.type = 'button'; r.dataset.act = 'rename'; r.innerHTML = ICON.edit; r.setAttribute('aria-label', 'Rename chat');
+      var d = el('button', 'mini-btn del'); d.type = 'button'; d.dataset.act = 'delete'; d.innerHTML = ICON.trash; d.setAttribute('aria-label', 'Delete chat');
+      acts.appendChild(r); acts.appendChild(d);
+      item.appendChild(b); item.appendChild(acts);
+      list.appendChild(item);
+    });
+  }
+
+  function renderHeader() {
+    var c = activeChat();
+    $('chatTitle').textContent = c ? c.title : 'ImagineAI';
+    $('modelLabel').textContent = state.settings.model;
+  }
+
+  function setActive(id) {
+    state.activeId = id; sset(KEYS.active, id);
+    renderAll(); scrollBottom(true); closeSidebar();
+  }
+  function renderAll() { renderSidebar(); renderHeader(); renderThread(); updateSendState(); }
+
+  function newChat() {
+    var cur = activeChat();
+    if (cur && !cur.messages.length) { closeSidebar(); $('input').focus(); return; }
+    var c = makeChat(); state.chats.push(c); state.activeId = c.id;
+    saveChats(); renderAll(); scrollBottom(true); closeSidebar();
+    if (!coarse) $('input').focus();
+  }
+  function renameChat(id) {
+    var c = state.chats.filter(function (x) { return x.id === id; })[0]; if (!c) return;
+    openDialog({
+      title: 'Rename chat', input: true, value: c.title, okText: 'Save',
+      onOk: function (v) {
+        v = (v || '').trim().slice(0, 80);
+        if (!v) { toast('Title cannot be empty'); return; }
+        c.title = v; saveChats(); renderSidebar(); renderHeader();
+      }
+    });
+  }
+  function deleteChat(id) {
+    var c = state.chats.filter(function (x) { return x.id === id; })[0]; if (!c) return;
+    openDialog({
+      title: 'Delete chat?', message: '"' + c.title + '" will be permanently removed from this device.',
+      okText: 'Delete', danger: true,
+      onOk: function () {
+        if (stream && stream.chatId === id) stream.controller.abort();
+        state.chats = state.chats.filter(function (x) { return x.id !== id; });
+        if (!state.chats.length) state.chats.push(makeChat());
+        if (state.activeId === id) state.activeId = state.chats.slice().sort(function (a, b) { return b.updated - a.updated; })[0].id;
+        saveChats(); renderAll();
+      }
+    });
+  }
+
+  /* ================= Theme ================= */
+  function applyTheme(t) {
+    state.theme = t === 'dark' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', state.theme);
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', state.theme === 'dark' ? '#0d0e12' : '#ffffff');
+    $('btnTheme').innerHTML = state.theme === 'dark' ? ICON.sun : ICON.moon;
+  }
+  function toggleTheme() { applyTheme(state.theme === 'dark' ? 'light' : 'dark'); sset(KEYS.theme, state.theme); }
+
+  /* ================= Markdown ================= */
+  function fallbackMd(text) {
+    var parts = String(text).split(/(```[\s\S]*?(?:```|$))/);
+    return parts.map(function (p) {
+      var m = p.match(/^```(\w*)\n?([\s\S]*?)(?:```)?$/);
+      if (p.indexOf('```') === 0 && m) return '<pre><code class="language-' + escapeHtml(m[1]) + '">' + escapeHtml(m[2]) + '</code></pre>';
+      var h = escapeHtml(p);
+      h = h.replace(/`([^`\n]+)`/g, '<code>$1</code>').replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+      return h.replace(/\n/g, '<br>');
+    }).join('');
+  }
+
+  function sanitize(html) {
+    var t = document.createElement('template');
+    t.innerHTML = html;
+    var bad = t.content.querySelectorAll('script,style,iframe,object,embed,link,meta,base,form,input,button,textarea,select,svg,math,frame,frameset');
+    for (var i = 0; i < bad.length; i++) bad[i].remove();
+    var all = t.content.querySelectorAll('*');
+    for (var j = 0; j < all.length; j++) {
+      var n = all[j], attrs = Array.prototype.slice.call(n.attributes);
+      for (var k = 0; k < attrs.length; k++) {
+        var name = attrs[k].name.toLowerCase();
+        var val = attrs[k].value.replace(/[\u0000-\u0020]/g, '').toLowerCase();
+        if (name.indexOf('on') === 0 || name === 'srcdoc' || name === 'style' ||
+            ((name === 'href' || name === 'src' || name === 'xlink:href' || name === 'action' || name === 'formaction') &&
+             /^(javascript|vbscript|data:text\/html)/.test(val))) {
+          n.removeAttribute(attrs[k].name);
+        }
+      }
+      if (n.tagName === 'A') { n.setAttribute('target', '_blank'); n.setAttribute('rel', 'noopener noreferrer'); }
+    }
+    var d = document.createElement('div'); d.appendChild(t.content);
+    return d.innerHTML;
+  }
+
+  function renderMd(text) {
+    var html;
+    try {
+      if (window.marked && typeof window.marked.parse === 'function') html = window.marked.parse(String(text || ''), { gfm: true, breaks: true });
+      else html = fallbackMd(text);
+    } catch (e) { html = fallbackMd(text); }
+    return sanitize(html);
+  }
+
+  function post(root) {
+    var pres = root.querySelectorAll('pre');
+    for (var i = 0; i < pres.length; i++) {
+      var pre = pres[i];
+      if (pre.parentElement && pre.parentElement.classList.contains('code-block')) continue;
+      var code = pre.querySelector('code');
+      var m = code && code.className.match(/language-([\w+#.-]+)/);
+      var wrap = el('div', 'code-block');
+      var head = el('div', 'code-head');
+      head.appendChild(el('span', '', m ? m[1] : 'code'));
+      var btn = el('button'); btn.type = 'button'; btn.dataset.act = 'copy-code';
+      btn.innerHTML = ICON.copy + '<span>Copy</span>';
+      head.appendChild(btn);
+      pre.parentNode.insertBefore(wrap, pre);
+      wrap.appendChild(head); wrap.appendChild(pre);
+    }
+    var tables = root.querySelectorAll('table');
+    for (var j = 0; j < tables.length; j++) {
+      var tb = tables[j];
+      if (tb.parentElement && tb.parentElement.classList.contains('table-wrap')) continue;
+      var w = el('div', 'table-wrap');
+      tb.parentNode.insertBefore(w, tb); w.appendChild(tb);
+    }
+  }
+
+  function addCaret(root) {
+    var t = root;
+    while (t.lastElementChild && !/^(PRE|TABLE|IMG|DIV|HR)$/.test(t.lastElementChild.tagName)) t = t.lastElementChild;
+    var c = document.createElement('span'); c.className = 'caret'; t.appendChild(c);
+  }
+
+  /* ================= Thread rendering ================= */
+  var DOTS = '<span class="dots"><i></i><i></i><i></i></span>';
+
+  function nearBottom() {
+    var de = document.documentElement;
+    return de.scrollHeight - (window.scrollY + window.innerHeight) < 170;
+  }
+  function scrollBottom() {
+    window.scrollTo(0, Math.max(document.documentElement.scrollHeight, document.body.scrollHeight));
+  }
+
+  function iconBtn(icon, act, label) {
+    var b = el('button', 'act'); b.type = 'button'; b.dataset.act = act;
+    b.innerHTML = ICON[icon] + '<span>' + label + '</span>';
+    return b;
+  }
+
+  function buildReasoning(text, open) {
+    var d = document.createElement('details'); d.className = 'reasoning'; if (open) d.open = true;
+    d.appendChild(el('summary', '', 'Thinking'));
+    d.appendChild(el('div', 'reasoning-text', text));
+    return d;
+  }
+
+  function buildMsg(m, i, isLast) {
+    var wrap = el('div', 'msg ' + (m.role === 'user' ? 'user' : 'ai') + (m.error ? ' error' : ''));
+    wrap.dataset.idx = i;
+    if (m.role === 'user') {
+      wrap.appendChild(el('div', 'bubble', m.content));
+      return wrap;
+    }
+    var av = el('div', 'avatar'); av.innerHTML = ICON.sparkle; wrap.appendChild(av);
+    var body = el('div', 'body'); wrap.appendChild(body);
+    var live = !!(stream && stream.msg === m);
+
+    if (m.error) {
+      body.appendChild(el('div', 'content', m.content));
+    } else {
+      if (m.reasoning) {
+        var rd = buildReasoning(m.reasoning, live); body.appendChild(rd);
+        if (live) stream.rEl = rd.querySelector('.reasoning-text');
+      } else if (live) { stream.rEl = null; }
+      var c = el('div', 'content md'); body.appendChild(c);
+      if (live) {
+        stream.el = c; stream.body = body;
+        if (m.content) { c.innerHTML = renderMd(m.content); post(c); addCaret(c); } else c.innerHTML = DOTS;
+      } else {
+        c.innerHTML = renderMd(m.content); post(c);
+      }
+    }
+    if (!live) {
+      var a = el('div', 'actions');
+      if (!m.error) a.appendChild(iconBtn('copy', 'copy-msg', 'Copy'));
+      if (isLast) a.appendChild(iconBtn('refresh', 'regen', m.error ? 'Retry' : 'Regenerate'));
+      if (a.childNodes.length) body.appendChild(a);
+    }
+    return wrap;
+  }
+
+  function renderThread() {
+    var th = $('thread'); th.textContent = '';
+    var c = activeChat(); if (!c) return;
+    if (!c.messages.length) { th.appendChild(buildWelcome()); return; }
+    for (var i = 0; i < c.messages.length; i++) th.appendChild(buildMsg(c.messages[i], i, i === c.messages.length - 1));
+  }
+
+  function buildWelcome() {
+    var w = el('div', 'welcome');
+    var lg = el('div', 'logo'); lg.innerHTML = ICON.sparkle; w.appendChild(lg);
+    w.appendChild(el('h1', '', 'What shall we imagine?'));
+    w.appendChild(el('p', '', 'Chat with any model on OpenRouter. Responses stream in live.'));
+    if (!state.settings.apiKey) {
+      var co = el('div', 'callout');
+      co.appendChild(document.createTextNode('To get started, '));
+      var b = el('button', '', 'add your OpenRouter API key'); b.type = 'button'; b.dataset.act = 'open-settings';
+      co.appendChild(b); co.appendChild(document.createTextNode('.'));
+      w.appendChild(co);
+    }
+    var chips = el('div', 'chips');
+    SUGGESTIONS.forEach(function (s) {
+      var ch = el('button', 'chip', s); ch.type = 'button'; ch.dataset.act = 'suggest'; ch.dataset.text = s;
+      chips.appendChild(ch);
+    });
+    w.appendChild(chips);
+    return w;
+  }
+
+  /* ================= Live painting ================= */
+  function paintLive() {
+    if (!stream || !stream.el || !stream.el.isConnected) return;
+    var near = nearBottom(), m = stream.msg;
+    if (m.reasoning) {
+      if (!stream.rEl || !stream.rEl.isConnected) {
+        var d = buildReasoning(m.reasoning, true);
+        stream.body.insertBefore(d, stream.el);
+        stream.rEl = d.querySelector('.reasoning-text');
+      }
+      stream.rEl.textContent = m.reasoning;
+      stream.rEl.scrollTop = stream.rEl.scrollHeight;
+    }
+    if (m.content) {
+      stream.el.innerHTML = renderMd(m.content); post(stream.el); addCaret(stream.el);
+    } else {
+      stream.el.innerHTML = DOTS;
+    }
+    if (near) scrollBottom();
+  }
+  function schedulePaint() {
+    if (!stream || stream.raf) return;
+    stream.raf = requestAnimationFrame(function () { if (stream) stream.raf = 0; paintLive(); });
+  }
+
+  /* Used only when the server answers with a complete (non-streamed) JSON body. */
+  function typeOut(msg, text, signal) {
+    return new Promise(function (resolve) {
+      var i = 0, step = Math.max(3, Math.ceil(text.length / 240));
+      (function tick() {
+        if (signal.aborted || !stream) { resolve(); return; }
+        i = Math.min(text.length, i + step);
+        msg.content = text.slice(0, i);
+        paintLive();
+        if (i < text.length) requestAnimationFrame(tick); else resolve();
+      })();
+    });
+  }
+
+  /* ================= API ================= */
+  function apiErr(e) {
+    var err = new Error(typeof e === 'string' ? e : ((e && e.message) || 'Unknown error'));
+    if (e && typeof e.code === 'number') err.status = e.code;
+    return err;
+  }
+  function httpError(res) {
+    return res.text().then(function (t) {
+      var msg = '';
+      try {
+        var j = JSON.parse(t);
+        msg = (j && j.error && (j.error.message || JSON.stringify(j.error))) || (j && j.message) || '';
+      } catch (e) { msg = (t || '').slice(0, 300); }
+      var err = new Error(msg || res.statusText || 'Request failed');
+      err.status = res.status;
+      return err;
+    }, function () {
+      var err = new Error(res.statusText || 'Request failed'); err.status = res.status; return err;
+    });
+  }
+
+  function friendlyError(err) {
+    var s = err && err.status, detail = err && err.message ? err.message : '';
+    var model = state.settings.model, base;
+    if (err && err.name === 'TypeError') {
+      base = 'Network error. Check your internet connection and try again.'; detail = '';
+    } else if (s === 401) base = 'Your API key was rejected. Open Settings and check your OpenRouter API key.';
+    else if (s === 402) base = 'Insufficient OpenRouter credits for this model. Add credits or choose a :free model in Settings.';
+    else if (s === 403) base = 'The request was blocked (moderation or access restriction).';
+    else if (s === 404) base = 'Model "' + model + '" was not found or has no available provider. Check the Model ID in Settings.';
+    else if (s === 400) base = 'The request was rejected. The Model ID "' + model + '" may be invalid or the input unsupported.';
+    else if (s === 408 || s === 429) base = 'Rate limited or timed out. Wait a moment and try again, or switch models.';
+    else if (s >= 500) base = 'OpenRouter or the model provider had a server error. Try again shortly.';
+    else if (err && err.empty) { base = 'The model returned an empty response. Try again or pick a different model.'; detail = ''; }
+    else base = 'Something went wrong while contacting the model.';
+    return detail ? base + '\n\nDetails: ' + detail : base;
+  }
+
+  async function requestCompletion(chat, msg, controller) {
+    var s = state.settings;
+    var history = chat.messages.filter(function (m) { return m !== msg && !m.error && m.content; })
+      .map(function (m) { return { role: m.role, content: m.content }; });
+    var sys = (s.system || '').trim();
+    if (sys) history.unshift({ role: 'system', content: sys });
+
+    var referer = 'https://imagineai.app';
+    try { if (location.origin && location.origin !== 'null' && /^https?:/.test(location.origin)) referer = location.origin; } catch (e) {}
+
+    var res = await fetch(API_URL, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + s.apiKey,
+        'HTTP-Referer': referer,
+        'X-Title': 'ImagineAI'
+      },
+      body: JSON.stringify({ model: s.model, messages: history, stream: true })
+    });
+    if (!res.ok) throw await httpError(res);
+
+    var ct = res.headers.get('content-type') || '';
+    if (!res.body || ct.indexOf('application/json') !== -1) {
+      var data = await res.json();
+      if (data && data.error) throw apiErr(data.error);
+      var ch = data && data.choices && data.choices[0];
+      var message = (ch && ch.message) || {};
+      msg.reasoning = typeof message.reasoning === 'string' ? message.reasoning : '';
+      await typeOut(msg, typeof message.content === 'string' ? message.content : '', controller.signal);
+    } else {
+      var reader = res.body.getReader(), dec = new TextDecoder(), buf = '', finished = false;
+      var handle = function (line) {
+        line = line.trim();
+        if (!line || line.charAt(0) === ':' || line.indexOf('data:') !== 0) return;
+        var payload = line.slice(5).trim();
+        if (payload === '[DONE]') { finished = true; return; }
+        var obj; try { obj = JSON.parse(payload); } catch (e) { return; }
+        if (obj && obj.error) throw apiErr(obj.error);
+        var c0 = obj && obj.choices && obj.choices[0]; if (!c0) return;
+        if (c0.error) throw apiErr(c0.error);
+        var dl = c0.delta || {};
+        if (typeof dl.content === 'string' && dl.content) msg.content += dl.content;
+        var r = dl.reasoning || dl.reasoning_content;
+        if (typeof r === 'string' && r) msg.reasoning += r;
+        schedulePaint();
+      };
+      while (!finished) {
+        var chunk = await reader.read();
+        if (chunk.done) break;
+        buf += dec.decode(chunk.value, { stream: true });
+        var nl;
+        while ((nl = buf.indexOf('\n')) !== -1 && !finished) {
+          var line = buf.slice(0, nl); buf = buf.slice(nl + 1);
+          handle(line);
+        }
+      }
+      if (!finished && buf) handle(buf);
+      try { reader.cancel(); } catch (e) {}
+    }
+    if (!msg.content.trim()) { var er = new Error('empty'); er.empty = true; throw er; }
+  }
+
+  async function startStream(chat) {
+    var msg = { role: 'assistant', content: '', reasoning: '', error: false };
+    chat.messages.push(msg);
+    var controller = new AbortController();
+    stream = { chatId: chat.id, msg: msg, controller: controller, el: null, body: null, rEl: null, raf: 0 };
+    updateSendState();
+    if (chat.id === state.activeId) { renderThread(); scrollBottom(); }
+    renderSidebar();
+    try {
+      await requestCompletion(chat, msg, controller);
+    } catch (err) {
+      if (err && err.name === 'AbortError') {
+        if (!msg.content) chat.messages = chat.messages.filter(function (x) { return x !== msg; });
+      } else {
+        var text = friendlyError(err);
+        if (msg.content) chat.messages.push({ role: 'assistant', content: text, reasoning: '', error: true });
+        else { msg.error = true; msg.content = text; msg.reasoning = ''; }
+      }
+    } finally {
+      if (stream && stream.raf) cancelAnimationFrame(stream.raf);
+      stream = null;
+      chat.updated = Date.now();
+      saveChats();
+      renderSidebar();
+      if (chat.id === state.activeId) renderThread();
+      updateSendState();
+    }
+  }
+
+  /* ================= Sending ================= */
+  function ensureReady() {
+    var s = state.settings;
+    if (!s.apiKey.trim()) { toast('Add your OpenRouter API key first'); openSettings(); return false; }
+    if (!/^[\x21-\x7e]+$/.test(s.apiKey.trim())) { toast('The API key contains invalid characters'); openSettings(); return false; }
+    if (!s.model.trim()) { toast('Enter a Model ID first'); openSettings(); return false; }
+    return true;
+  }
+
+  function sendText(text) {
+    text = (text || '').trim();
+    if (!text) return;
+    if (stream) { toast('Please wait for the current response to finish'); return; }
+    if (!ensureReady()) return;
+    var chat = activeChat(); if (!chat) return;
+    chat.messages.push({ role: 'user', content: text, reasoning: '', error: false });
+    if (chat.messages.filter(function (m) { return m.role === 'user'; }).length === 1) {
+      var t = text.replace(/\s+/g, ' ').trim();
+      chat.title = t.length > 42 ? t.slice(0, 42).trim() + '…' : t;
+    }
+    chat.updated = Date.now();
+    var inp = $('input'); inp.value = ''; autosize();
+    saveChats(); renderHeader();
+    startStream(chat);
+  }
+
+  function regenerate() {
+    if (stream) return;
+    var chat = activeChat(); if (!chat) return;
+    while (chat.messages.length && chat.messages[chat.messages.length - 1].role === 'assistant') chat.messages.pop();
+    if (!chat.messages.length) { renderThread(); return; }
+    if (!ensureReady()) { renderThread(); return; }
+    startStream(chat);
+  }
+
+  function updateSendState() {
+    var btn = $('btnSend');
+    var busy = !!(stream && stream.chatId === state.activeId);
+    btn.innerHTML = busy ? ICON.stop : ICON.send;
+    btn.setAttribute('aria-label', busy ? 'Stop generating' : 'Send message');
+    btn.disabled = !busy && !$('input').value.trim();
+  }
+
+  function autosize() {
+    var i = $('input'); i.style.height = 'auto';
+    i.style.height = Math.min(i.scrollHeight, 180) + 'px';
+  }
+
+  function handleSubmit(e) {
+    if (e) e.preventDefault();
+    if (stream && stream.chatId === state.activeId) { stream.controller.abort(); return; }
+    sendText($('input').value);
+  }
+
+  /* ================= Clipboard ================= */
+  function copyText(text) {
+    var done = function () { toast('Copied to clipboard'); };
+    var fallback = function () {
+      try {
+        var ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly', '');
+        ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0'; document.body.appendChild(ta); ta.select();
+        var ok = document.execCommand('copy'); ta.remove();
+        if (ok) done(); else toast('Copy failed');
+      } catch (e) { toast('Copy failed'); }
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
+    else fallback();
+  }
+
+  /* ================= Settings ================= */
+  function openSettings() {
+    closeSidebar();
+    $('setKey').value = state.settings.apiKey;
+    $('setKey').type = 'password'; $('btnShowKey').textContent = 'Show';
+    $('setModel').value = state.settings.model;
+    $('setSystem').value = state.settings.system;
+    $('setError').hidden = true;
+    openModal('settingsModal');
+  }
+  function saveSettings(e) {
+    e.preventDefault();
+    var key = $('setKey').value.trim(), model = $('setModel').value.trim(), sys = $('setSystem').value;
+    var err = $('setError');
+    if (!model) { err.textContent = 'Model ID cannot be empty.'; err.hidden = false; return; }
+    if (/\s/.test(model)) { err.textContent = 'Model ID cannot contain spaces (example: deepseek/deepseek-r1:free).'; err.hidden = false; return; }
+    if (key && !/^[\x21-\x7e]+$/.test(key)) { err.textContent = 'The API key contains invalid characters. Re-copy it from openrouter.ai/keys.'; err.hidden = false; return; }
+    state.settings.apiKey = key; state.settings.model = model; state.settings.system = sys;
+    var ok = sset(KEYS.key, key) & sset(KEYS.model, model) & sset(KEYS.system, sys);
+    closeModal('settingsModal');
+    renderHeader();
+    if (!(stream)) { var c = activeChat(); if (c && !c.messages.length) renderThread(); }
+    toast(ok ? 'Settings saved' : 'Saved for this session only (storage unavailable)');
+  }
+
+  /* ================= Events ================= */
+  function bind() {
+    document.querySelectorAll('[data-icon]').forEach(function (n) { n.innerHTML = ICON[n.getAttribute('data-icon')] || ''; });
+
+    $('btnMenu').addEventListener('click', openSidebar);
+    $('btnCloseSb').addEventListener('click', closeSidebar);
+    $('backdrop').addEventListener('click', closeSidebar);
+    $('btnNew').addEventListener('click', newChat);
+    $('btnTheme').addEventListener('click', toggleTheme);
+    $('btnSettings').addEventListener('click', openSettings);
+    $('btnSettingsSb').addEventListener('click', openSettings);
+    $('settingsForm').addEventListener('submit', saveSettings);
+    $('btnShowKey').addEventListener('click', function () {
+      var i = $('setKey'), show = i.type === 'password';
+      i.type = show ? 'text' : 'password'; this.textContent = show ? 'Hide' : 'Show';
+    });
+    $('btnResetSys').addEventListener('click', function () { $('setSystem').value = DEFAULT_SYSTEM; });
+    $('dlgOk').addEventListener('click', dialogOk);
+    $('dlgInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); dialogOk(); } });
+
+    document.addEventListener('click', function (e) {
+      var c = e.target.closest ? e.target.closest('[data-close]') : null;
+      if (c) { closeModal(c.getAttribute('data-close')); return; }
+      if (e.target.classList && e.target.classList.contains('modal')) closeModal(e.target.id);
+    });
+
+    $('chatList').addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-act]'); if (!btn) return;
+      var item = btn.closest('.chat-item'); if (!item) return;
+      var id = item.dataset.id, act = btn.dataset.act;
+      if (act === 'open') setActive(id);
+      else if (act === 'rename') renameChat(id);
+      else if (act === 'delete') deleteChat(id);
+    });
+
+    $('thread').addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-act]'); if (!btn) return;
+      var act = btn.dataset.act;
+      if (act === 'suggest') sendText(btn.dataset.text);
+      else if (act === 'open-settings') openSettings();
+      else if (act === 'regen') regenerate();
+      else if (act === 'copy-code') {
+        var blk = btn.closest('.code-block'), code = blk && blk.querySelector('pre');
+        if (code) copyText(code.textContent);
+      } else if (act === 'copy-msg') {
+        var row = btn.closest('.msg'), c = activeChat();
+        var m = c && row ? c.messages[Number(row.dataset.idx)] : null;
+        if (m) copyText(m.content);
+      }
+    });
+
+    var inp = $('input');
+    inp.addEventListener('input', function () { autosize(); updateSendState(); });
+    inp.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && !e.shiftKey && !coarse && !e.isComposing) { e.preventDefault(); handleSubmit(); }
+    });
+    $('composer').addEventListener('submit', handleSubmit);
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      var open = document.querySelectorAll('.modal.open');
+      if (open.length) closeModal(open[open.length - 1].id);
+      else closeSidebar();
+    });
+
+    window.addEventListener('resize', function () { if (window.innerWidth >= 860) closeSidebar(); });
+    window.addEventListener('pagehide', function () { if (stream) saveChats(); });
+
+    // Keep the input bar above the on-screen keyboard (iOS Safari and similar).
+    if (window.visualViewport) {
+      var wrap = $('composerWrap');
+      var adjust = function () {
+        var vv = window.visualViewport;
+        var off = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+        wrap.style.transform = off > 1 ? 'translateY(' + (-off) + 'px)' : '';
+      };
+      window.visualViewport.addEventListener('resize', adjust);
+      window.visualViewport.addEventListener('scroll', adjust);
+    }
+
+    window.addEventListener('error', function (ev) {
+      var l = $('loading');
+      if (l && !l.classList.contains('done')) return;
+      toast('Unexpected error: ' + (ev && ev.message ? ev.message : 'unknown'));
+    });
+    window.addEventListener('unhandledrejection', function (ev) {
+      toast('Unexpected error: ' + (ev && ev.reason && ev.reason.message ? ev.reason.message : 'unknown'));
+    });
+  }
+
+  /* ================= Init ================= */
+  function init() {
+    try {
+      loadState();
+      bind();
+      applyTheme(state.theme);
+      renderAll();
+      autosize();
+      var l = $('loading');
+      l.classList.add('done');
+      setTimeout(function () { l.style.display = 'none'; }, 350);
+    } catch (err) {
+      var ld = $('loading');
+      if (ld) {
+        ld.classList.add('failed');
+        $('loadingText').textContent = 'ImagineAI failed to start: ' + (err && err.message ? err.message : err) + '. Try reloading the page.';
+      }
+      if (window.console) console.error(err);
+    }
+  }
+  init();
+})();
+</script>
+</body>
+</html>
